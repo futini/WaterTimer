@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Напоминалка</string>
+
+    <string name="channel_name">Напоминания</string>
+    <string name="channel_description">Регулярные напоминания с заданным интервалом</string>
+    <string name="notification_title">Напоминание</string>
+
+    <string name="hint_text">Текст напоминания</string>
+    <string name="helper_text">Например: Выпить стакан воды</string>
+    <string name="hint_interval">Интервал</string>
+    <string name="helper_interval">Минимум 1 минута, максимум 30 дней</string>
+    <string name="unit_minutes">Минуты</string>
+    <string name="unit_hours">Часы</string>
+
+    <string name="btn_start">Запустить напоминания</string>
+    <string name="btn_stop">Остановить</string>
+    <string name="btn_battery">Разрешить работу в фоне</string>
+
+    <string name="status_running">● Работает</string>
+    <string name="status_stopped">● Остановлено</string>
+    <string name="status_idle_hint">Введите текст и интервал, затем нажмите «Запустить напоминания».</string>
+    <string name="status_next">Каждые %1$s. Следующее напоминание через %2$s</string>
+
+    <string name="interval_minutes">%d мин</string>
+    <string name="interval_hours">%d ч</string>
+
+    <string name="error_text">Введите текст напоминания</string>
+    <string name="error_interval">Введите число больше нуля</string>
+    <string name="error_interval_min">Минимальный интервал — 1 минута</string>
+    <string name="error_interval_max">Максимальный интервал — 30 дней</string>
+
+    <string name="toast_started">Запущено. Первое напоминание через %s</string>
+    <string name="toast_stopped">Напоминания остановлены</string>
+    <string name="toast_no_settings">Не удалось открыть настройки. Откройте их вручную в параметрах приложения.</string>
+
+    <string name="dlg_notif_title">Уведомления выключены</string>
+    <string name="dlg_notif_message">Без разрешения на уведомления напоминания не появятся. Включите уведомления для этого приложения в настройках.</string>
+    <string name="dlg_alarm_title">Нужны точные напоминания</string>
+    <string name="dlg_alarm_message">Включите для приложения разрешение «Будильники и напоминания» — тогда уведомления будут приходить строго по расписанию. Без него они могут опаздывать.</string>
+    <string name="dlg_open_settings">Открыть настройки</string>
+    <string name="dlg_start_anyway">Запустить так</string>
+    <string name="dlg_cancel">Отмена</string>
+</resources>
