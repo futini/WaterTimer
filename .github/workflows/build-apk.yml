@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # позволяет запускать сборку вручную кнопкой
+  workflow_dispatch:
 
 jobs:
   build:
@@ -20,13 +20,15 @@ jobs:
           java-version: '17'
 
       - name: Предоставление прав на выполнение gradlew
+        working-directory: ReminderApp/ReminderApp
         run: chmod +x gradlew
 
       - name: Сборка отладочного APK (Debug)
+        working-directory: ReminderApp/ReminderApp
         run: ./gradlew assembleDebug
 
       - name: Сохранение собранного APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: ReminderApp/ReminderApp/app/build/outputs/apk/debug/*.apk
