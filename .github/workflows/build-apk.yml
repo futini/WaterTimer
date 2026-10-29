@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Find files
 
 on:
   push:
@@ -6,29 +6,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Клонирование репозитория
-        uses: actions/checkout@v4
-
-      - name: Установка Java (JDK 17)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Предоставление прав на выполнение gradlew
-        working-directory: ReminderApp/ReminderApp
-        run: chmod +x gradlew
-
-      - name: Сборка отладочного APK (Debug)
-        working-directory: ReminderApp/ReminderApp
-        run: ./gradlew assembleDebug
-
-      - name: Сохранение собранного APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: ReminderApp/ReminderApp/app/build/outputs/apk/debug/*.apk
+      - uses: actions/checkout@v4
+      - name: Показать все файлы
+        run: find . -maxdepth 3
