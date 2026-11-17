@@ -655,7 +655,7 @@ private fun AnalogDial(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val c = Offset(size.width / 2f, size.height / 2f)
-                    val r = size.minDimension / 2f
+                    val r = minOf(size.width, size.height) / 2f
 
                     // Берём ближайшую к пальцу стрелку (по кончику).
                     val tips = listOf(
@@ -696,7 +696,7 @@ private fun AnalogDial(
             }
     ) {
         val c = center
-        val r = size.minDimension / 2f
+        val r = minOf(size.width, size.height) / 2f
 
         // Лицо циферблата
         drawCircle(
