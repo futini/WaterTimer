@@ -1256,7 +1256,7 @@ private fun StartStopButton(running: Boolean, onClick: () -> Unit) {
 @Composable
 private fun PlayStopIcon(mix: Float) {
     Canvas(Modifier.size(22.dp)) {
-        val s = size.minDimension
+        val s = minOf(size.width, size.height)
         rotate(degrees = 90f * mix) {
             if (mix < 0.99f) {
                 val play = Path().apply {
