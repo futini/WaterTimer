@@ -2,6 +2,7 @@ package com.example.reminder
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -84,6 +85,7 @@ class MainActivity : AppCompatActivity() {
     private var intervalSec by mutableIntStateOf(DEFAULT_SEC)
     private var reminderText by mutableStateOf("")
     private var textError by mutableStateOf(false)
+    private var themeId by mutableStateOf(ThemeId.WATER)
 
     /** Раз в секунду обновляет обратный отсчёт до следующего напоминания. */
     private val ticker = object : Runnable {
@@ -104,9 +106,10 @@ class MainActivity : AppCompatActivity() {
 
         NotificationHelper.ensureChannel(this)
         restoreInputs()
+        themeId = ThemeStore.load(this)
 
         setContent {
-            WaterTheme {
+            AppTheme(themeId) {
                 MainScreen(
                     totalSec = intervalSec,
                     onTotalChange = { intervalSec = it.coerceIn(MIN_SEC, MAX_SEC) },
@@ -122,6 +125,11 @@ class MainActivity : AppCompatActivity() {
                     batteryVisible = batteryButtonVisible,
                     onBattery = { requestIgnoreBatteryOptimizations() },
                     onToggle = { if (running) onStopClicked() else onStartClicked() },
+                    themeId = themeId,
+                    onThemeChange = {
+                        themeId = it
+                        ThemeStore.save(this@MainActivity, it)
+                    },
                 )
             }
         }
@@ -311,13 +319,39 @@ private fun formatDuration(ms: Long): String {
 private fun two(v: Int): String = v.toString().padStart(2, '0')
 
 // =====================================================================================
-//  Тема: «водная» палитра, светлая и тёмная
+//  Темы оформления: 5 палитр, у каждой светлый и тёмный вариант
 // =====================================================================================
 
+private enum class ThemeId(val title: String) {
+    WATER("Водная"),
+    MONO("Монохром"),
+    EMERALD("Изумрудная"),
+    AMBER("Янтарная"),
+    LAVENDER("Лавандовая");
+
+    companion object {
+        fun fromName(name: String?): ThemeId = values().firstOrNull { it.name == name } ?: WATER
+    }
+}
+
+/** Выбранная тема хранится в SharedPreferences и переживает перезапуск приложения. */
+private object ThemeStore {
+    private const val FILE = "ui_prefs"
+    private const val KEY_THEME = "color_theme"
+
+    private fun sp(ctx: Context) =
+        ctx.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+
+    fun load(ctx: Context): ThemeId = ThemeId.fromName(sp(ctx).getString(KEY_THEME, null))
+
+    fun save(ctx: Context, id: ThemeId) {
+        sp(ctx).edit().putString(KEY_THEME, id.name).apply()
+    }
+}
+
 @Immutable
-private class WaterPalette(
+private class AppPalette(
     val dark: Boolean,
-    val scheme: ColorScheme,
     val bgTop: Color,
     val bgBottom: Color,
     val card: Color,
@@ -325,82 +359,426 @@ private class WaterPalette(
     val faceCenter: Color,
     val faceEdge: Color,
     val tick: Color,
+    val tickStrong: Color,
     val hour: Color,
     val minute: Color,
     val second: Color,
+    val primary: Color,
+    val onPrimary: Color,
+    val secondary: Color,
+    val onSurface: Color,
+    val onSurfaceVariant: Color,
+    val outline: Color,
+    val outlineVariant: Color,
+    val error: Color,
     val stop: Color,
     val startFrom: Color,
     val startTo: Color,
 )
 
-private val LightPalette = WaterPalette(
+// ---- Водная ----------------------------------------------------------------------
+
+private val WaterLight = AppPalette(
     dark = false,
-    scheme = lightColorScheme(
-        primary = Color(0xFF0B5CA8), onPrimary = Color.White,
-        primaryContainer = Color(0xFFD3E8FF), onPrimaryContainer = Color(0xFF00213F),
-        secondary = Color(0xFF00828F), onSecondary = Color.White,
-        secondaryContainer = Color(0xFFB8EEF5), onSecondaryContainer = Color(0xFF001F24),
-        tertiary = Color(0xFF00A58E), onTertiary = Color.White,
-        tertiaryContainer = Color(0xFFB9F4E6), onTertiaryContainer = Color(0xFF00201A),
-        background = Color(0xFFEFF8FC), onBackground = Color(0xFF0C1C28),
-        surface = Color(0xFFF6FBFE), onSurface = Color(0xFF0C1C28),
-        surfaceVariant = Color(0xFFDCE8EF), onSurfaceVariant = Color(0xFF3D4A54),
-        outline = Color(0xFF6C7A85), outlineVariant = Color(0xFFBFCDD6),
-        error = Color(0xFFC0443C), onError = Color.White,
-    ),
     bgTop = Color(0xFFDDF1FA), bgBottom = Color(0xFFF4FAFD),
     card = Color(0xFFFFFFFF), cardBorder = Color(0xFFCFE3EE),
     faceCenter = Color(0xFFFFFFFF), faceEdge = Color(0xFFD9EEF8),
-    tick = Color(0xFF5F8CA8),
+    tick = Color(0xFF5F8CA8), tickStrong = Color(0xFF0B3F73),
     hour = Color(0xFF0B4F94), minute = Color(0xFF12B3A0), second = Color(0xFF00B8D9),
-    stop = Color(0xFFC84A41),
+    primary = Color(0xFF0B5CA8), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFF00828F),
+    onSurface = Color(0xFF0C1C28), onSurfaceVariant = Color(0xFF3D4A54),
+    outline = Color(0xFF6C7A85), outlineVariant = Color(0xFFBFCDD6),
+    error = Color(0xFFC0443C), stop = Color(0xFFC84A41),
     startFrom = Color(0xFF0B5CA8), startTo = Color(0xFF0090B0),
 )
 
-private val DarkPalette = WaterPalette(
+private val WaterDark = AppPalette(
     dark = true,
-    scheme = darkColorScheme(
-        primary = Color(0xFF8CC8FF), onPrimary = Color(0xFF00315A),
-        primaryContainer = Color(0xFF0F4577), onPrimaryContainer = Color(0xFFD3E8FF),
-        secondary = Color(0xFF52D7E8), onSecondary = Color(0xFF00363D),
-        secondaryContainer = Color(0xFF004F58), onSecondaryContainer = Color(0xFFB8EEF5),
-        tertiary = Color(0xFF4FDCC2), onTertiary = Color(0xFF00382F),
-        tertiaryContainer = Color(0xFF005045), onTertiaryContainer = Color(0xFFB9F4E6),
-        background = Color(0xFF06141F), onBackground = Color(0xFFDDEAF2),
-        surface = Color(0xFF0A1B28), onSurface = Color(0xFFDDEAF2),
-        surfaceVariant = Color(0xFF223541), onSurfaceVariant = Color(0xFFB4C4CF),
-        outline = Color(0xFF7D8E9A), outlineVariant = Color(0xFF2E434F),
-        error = Color(0xFFFF8A80), onError = Color(0xFF3A0A07),
-    ),
     bgTop = Color(0xFF08233A), bgBottom = Color(0xFF050F18),
     card = Color(0xFF0F2536), cardBorder = Color(0xFF1E3A4E),
     faceCenter = Color(0xFF123349), faceEdge = Color(0xFF0B2234),
-    tick = Color(0xFF6FA0BC),
+    tick = Color(0xFF6FA0BC), tickStrong = Color(0xFFBFE3F8),
     hour = Color(0xFF6DB6FF), minute = Color(0xFF3FE0C5), second = Color(0xFF67E8F9),
-    stop = Color(0xFFC84A41),
+    primary = Color(0xFF8CC8FF), onPrimary = Color(0xFF00315A), secondary = Color(0xFF52D7E8),
+    onSurface = Color(0xFFDDEAF2), onSurfaceVariant = Color(0xFFB4C4CF),
+    outline = Color(0xFF7D8E9A), outlineVariant = Color(0xFF2E434F),
+    error = Color(0xFFFF8A80), stop = Color(0xFFC84A41),
     startFrom = Color(0xFF1767B8), startTo = Color(0xFF0A8FB0),
 )
 
-private val LocalWater = staticCompositionLocalOf { LightPalette }
+// ---- Строгий монохром ------------------------------------------------------------
+
+private val MonoLight = AppPalette(
+    dark = false,
+    bgTop = Color(0xFFEDEDED), bgBottom = Color(0xFFF8F8F8),
+    card = Color(0xFFFFFFFF), cardBorder = Color(0xFFDADADA),
+    faceCenter = Color(0xFFFFFFFF), faceEdge = Color(0xFFF1F1F1),
+    tick = Color(0xFF8A8A8A), tickStrong = Color(0xFF111111),
+    hour = Color(0xFF111111), minute = Color(0xFF474747), second = Color(0xFF858585),
+    primary = Color(0xFF1C1C1C), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFF555555),
+    onSurface = Color(0xFF111111), onSurfaceVariant = Color(0xFF4A4A4A),
+    outline = Color(0xFF7A7A7A), outlineVariant = Color(0xFFCFCFCF),
+    error = Color(0xFFB3261E), stop = Color(0xFFB23B32),
+    startFrom = Color(0xFF1C1C1C), startTo = Color(0xFF3A3A3A),
+)
+
+private val MonoDark = AppPalette(
+    dark = true,
+    bgTop = Color(0xFF1A1A1A), bgBottom = Color(0xFF0B0B0B),
+    card = Color(0xFF171717), cardBorder = Color(0xFF2C2C2C),
+    faceCenter = Color(0xFF1F1F1F), faceEdge = Color(0xFF131313),
+    tick = Color(0xFF8C8C8C), tickStrong = Color(0xFFF2F2F2),
+    hour = Color(0xFFF2F2F2), minute = Color(0xFFBDBDBD), second = Color(0xFF8E8E8E),
+    primary = Color(0xFFEDEDED), onPrimary = Color(0xFF111111), secondary = Color(0xFFB0B0B0),
+    onSurface = Color(0xFFEDEDED), onSurfaceVariant = Color(0xFFB5B5B5),
+    outline = Color(0xFF8A8A8A), outlineVariant = Color(0xFF3A3A3A),
+    error = Color(0xFFFF8A80), stop = Color(0xFFC0463C),
+    startFrom = Color(0xFF4A4A4A), startTo = Color(0xFF6A6A6A),
+)
+
+// ---- Изумрудная ------------------------------------------------------------------
+
+private val EmeraldLight = AppPalette(
+    dark = false,
+    bgTop = Color(0xFFD9F2E6), bgBottom = Color(0xFFF3FBF7),
+    card = Color(0xFFFFFFFF), cardBorder = Color(0xFFC6E5D4),
+    faceCenter = Color(0xFFFFFFFF), faceEdge = Color(0xFFDDF3E8),
+    tick = Color(0xFF5D8F76), tickStrong = Color(0xFF0B3D2A),
+    hour = Color(0xFF0A4D36), minute = Color(0xFF12805C), second = Color(0xFF10B081),
+    primary = Color(0xFF0A6B4B), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFF1F7A5C),
+    onSurface = Color(0xFF0E2019), onSurfaceVariant = Color(0xFF3F544B),
+    outline = Color(0xFF6E8479), outlineVariant = Color(0xFFC2D6CB),
+    error = Color(0xFFC0443C), stop = Color(0xFFC84A41),
+    startFrom = Color(0xFF0A5A41), startTo = Color(0xFF12936B),
+)
+
+private val EmeraldDark = AppPalette(
+    dark = true,
+    bgTop = Color(0xFF0A2A20), bgBottom = Color(0xFF04120D),
+    card = Color(0xFF0F2A21), cardBorder = Color(0xFF1E4535),
+    faceCenter = Color(0xFF123629), faceEdge = Color(0xFF0B2219),
+    tick = Color(0xFF6FA790), tickStrong = Color(0xFFD3F5E5),
+    hour = Color(0xFFA7EBD0), minute = Color(0xFF34B98A), second = Color(0xFF5BE0AE),
+    primary = Color(0xFF7FE0B8), onPrimary = Color(0xFF00382A), secondary = Color(0xFF6FD3AB),
+    onSurface = Color(0xFFDDEFE6), onSurfaceVariant = Color(0xFFB3C9BE),
+    outline = Color(0xFF7E968A), outlineVariant = Color(0xFF2C473B),
+    error = Color(0xFFFF8A80), stop = Color(0xFFC84A41),
+    startFrom = Color(0xFF0F6B4C), startTo = Color(0xFF0E8A67),
+)
+
+// ---- Янтарная --------------------------------------------------------------------
+
+private val AmberLight = AppPalette(
+    dark = false,
+    bgTop = Color(0xFFFCEBD2), bgBottom = Color(0xFFFFF8EE),
+    card = Color(0xFFFFFFFF), cardBorder = Color(0xFFF0DCBC),
+    faceCenter = Color(0xFFFFFFFF), faceEdge = Color(0xFFFBEBD3),
+    tick = Color(0xFFA07C45), tickStrong = Color(0xFF3A2400),
+    hour = Color(0xFF7C3F00), minute = Color(0xFFD97706), second = Color(0xFFC2410C),
+    primary = Color(0xFF9A5B00), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFFB45309),
+    onSurface = Color(0xFF2A1B05), onSurfaceVariant = Color(0xFF5B4A30),
+    outline = Color(0xFF8C7650), outlineVariant = Color(0xFFE2D2B5),
+    error = Color(0xFFB3261E), stop = Color(0xFFC84A41),
+    startFrom = Color(0xFFA8480A), startTo = Color(0xFFC96A00),
+)
+
+private val AmberDark = AppPalette(
+    dark = true,
+    bgTop = Color(0xFF2B1A06), bgBottom = Color(0xFF120B03),
+    card = Color(0xFF22160A), cardBorder = Color(0xFF4A3414),
+    faceCenter = Color(0xFF2E1F0C), faceEdge = Color(0xFF1D1307),
+    tick = Color(0xFFB08A4E), tickStrong = Color(0xFFFFE8BF),
+    hour = Color(0xFFFFD08A), minute = Color(0xFFFFB020), second = Color(0xFFFF8A3D),
+    primary = Color(0xFFFFC266), onPrimary = Color(0xFF3A2400), secondary = Color(0xFFFFB86B),
+    onSurface = Color(0xFFF6E9D2), onSurfaceVariant = Color(0xFFCDBA98),
+    outline = Color(0xFF9A8660), outlineVariant = Color(0xFF4A3A1E),
+    error = Color(0xFFFF8A80), stop = Color(0xFFC84A41),
+    startFrom = Color(0xFFA8480A), startTo = Color(0xFFC96A00),
+)
+
+// ---- Лавандовая ------------------------------------------------------------------
+
+private val LavenderLight = AppPalette(
+    dark = false,
+    bgTop = Color(0xFFE8E4FA), bgBottom = Color(0xFFF7F5FE),
+    card = Color(0xFFFFFFFF), cardBorder = Color(0xFFDAD3F2),
+    faceCenter = Color(0xFFFFFFFF), faceEdge = Color(0xFFECE8FB),
+    tick = Color(0xFF7C74A8), tickStrong = Color(0xFF2B2160),
+    hour = Color(0xFF2F2780), minute = Color(0xFF5B5BD6), second = Color(0xFF9A5CE6),
+    primary = Color(0xFF4C3FB5), onPrimary = Color(0xFFFFFFFF), secondary = Color(0xFF6B4FC0),
+    onSurface = Color(0xFF1A1633), onSurfaceVariant = Color(0xFF4C4870),
+    outline = Color(0xFF7D7AA0), outlineVariant = Color(0xFFD3CFEA),
+    error = Color(0xFFC0443C), stop = Color(0xFFC84A41),
+    startFrom = Color(0xFF3B2F8F), startTo = Color(0xFF7458D6),
+)
+
+private val LavenderDark = AppPalette(
+    dark = true,
+    bgTop = Color(0xFF1E1740), bgBottom = Color(0xFF0D0A1F),
+    card = Color(0xFF17122E), cardBorder = Color(0xFF2F2860),
+    faceCenter = Color(0xFF1F1844), faceEdge = Color(0xFF130F2C),
+    tick = Color(0xFF8F88C8), tickStrong = Color(0xFFE6E1FF),
+    hour = Color(0xFFC7BFFF), minute = Color(0xFF8F8CF5), second = Color(0xFFC58BFF),
+    primary = Color(0xFFB8AEFF), onPrimary = Color(0xFF241A66), secondary = Color(0xFFC1A9FF),
+    onSurface = Color(0xFFE8E4FA), onSurfaceVariant = Color(0xFFBDB8DD),
+    outline = Color(0xFF8A86AE), outlineVariant = Color(0xFF36305F),
+    error = Color(0xFFFF8A80), stop = Color(0xFFC84A41),
+    startFrom = Color(0xFF3B2F8F), startTo = Color(0xFF6A52D0),
+)
+
+private fun paletteFor(id: ThemeId, dark: Boolean): AppPalette = when (id) {
+    ThemeId.WATER -> if (dark) WaterDark else WaterLight
+    ThemeId.MONO -> if (dark) MonoDark else MonoLight
+    ThemeId.EMERALD -> if (dark) EmeraldDark else EmeraldLight
+    ThemeId.AMBER -> if (dark) AmberDark else AmberLight
+    ThemeId.LAVENDER -> if (dark) LavenderDark else LavenderLight
+}
+
+/** Каждый цвет темы плавно перетекает в новый через animateColorAsState. */
+@Composable
+private fun animColor(target: Color): Color =
+    animateColorAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
+        label = "themeColor",
+    ).value
 
 @Composable
-private fun WaterTheme(content: @Composable () -> Unit) {
-    val palette = if (isSystemInDarkTheme()) DarkPalette else LightPalette
-    MaterialTheme(colorScheme = palette.scheme) {
+private fun animatedPalette(t: AppPalette): AppPalette = AppPalette(
+    dark = t.dark,
+    bgTop = animColor(t.bgTop),
+    bgBottom = animColor(t.bgBottom),
+    card = animColor(t.card),
+    cardBorder = animColor(t.cardBorder),
+    faceCenter = animColor(t.faceCenter),
+    faceEdge = animColor(t.faceEdge),
+    tick = animColor(t.tick),
+    tickStrong = animColor(t.tickStrong),
+    hour = animColor(t.hour),
+    minute = animColor(t.minute),
+    second = animColor(t.second),
+    primary = animColor(t.primary),
+    onPrimary = animColor(t.onPrimary),
+    secondary = animColor(t.secondary),
+    onSurface = animColor(t.onSurface),
+    onSurfaceVariant = animColor(t.onSurfaceVariant),
+    outline = animColor(t.outline),
+    outlineVariant = animColor(t.outlineVariant),
+    error = animColor(t.error),
+    stop = animColor(t.stop),
+    startFrom = animColor(t.startFrom),
+    startTo = animColor(t.startTo),
+)
+
+private val LocalPalette = compositionLocalOf { WaterLight }
+
+private fun buildScheme(p: AppPalette): ColorScheme {
+    val base = if (p.dark) darkColorScheme() else lightColorScheme()
+    return base.copy(
+        primary = p.primary,
+        onPrimary = p.onPrimary,
+        secondary = p.secondary,
+        onSecondary = p.onPrimary,
+        background = p.bgBottom,
+        onBackground = p.onSurface,
+        surface = p.card,
+        onSurface = p.onSurface,
+        surfaceVariant = p.card,
+        onSurfaceVariant = p.onSurfaceVariant,
+        outline = p.outline,
+        outlineVariant = p.outlineVariant,
+        error = p.error,
+        onError = Color.White,
+    )
+}
+
+@Composable
+private fun AppTheme(themeId: ThemeId, content: @Composable () -> Unit) {
+    val palette = animatedPalette(paletteFor(themeId, isSystemInDarkTheme()))
+    MaterialTheme(colorScheme = buildScheme(palette)) {
         CompositionLocalProvider(
-            LocalWater provides palette,
-            LocalContentColor provides palette.scheme.onSurface,
+            LocalPalette provides palette,
+            LocalContentColor provides palette.onSurface,
             content = content
         )
     }
 }
 
-private fun Modifier.waterCard(water: WaterPalette, radius: Dp = 28.dp): Modifier {
+private fun Modifier.appCard(pal: AppPalette, radius: Dp = 28.dp): Modifier {
     val shape = RoundedCornerShape(radius)
     return this
         .clip(shape)
-        .background(water.card)
-        .border(1.dp, water.cardBorder, shape)
+        .background(pal.card)
+        .border(1.dp, pal.cardBorder, shape)
+}
+
+// =====================================================================================
+//  Выбор темы: кнопка-палитра в углу раскрывает ряд цветных кружков
+// =====================================================================================
+
+@Composable
+private fun ThemePickerBar(
+    current: ThemeId,
+    onSelect: (ThemeId) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pal = LocalPalette.current
+    val dark = isSystemInDarkTheme()
+    var open by remember { mutableStateOf(false) }
+
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(44.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AnimatedVisibility(
+            visible = open,
+            enter = fadeIn(tween(200)) + expandHorizontally(
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                expandFrom = Alignment.End,
+            ),
+            exit = fadeOut(tween(150)) + shrinkHorizontally(
+                animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+                shrinkTowards = Alignment.End,
+            ),
+        ) {
+            Row(
+                Modifier
+                    .padding(end = 8.dp)
+                    .appCard(pal, 22.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ThemeId.values().forEach { id ->
+                    ThemeDot(
+                        id = id,
+                        dark = dark,
+                        isSelected = id == current,
+                        onClick = { onSelect(id) },
+                    )
+                }
+            }
+        }
+        PaletteButton(open = open, onClick = { open = !open })
+    }
+}
+
+@Composable
+private fun ThemeDot(id: ThemeId, dark: Boolean, isSelected: Boolean, onClick: () -> Unit) {
+    val ink = LocalPalette.current.onSurface
+    val sample = remember(id, dark) { paletteFor(id, dark) }
+    val dotScale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.8f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "dotScale",
+    )
+    val ring by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = tween(250),
+        label = "dotRing",
+    )
+
+    Canvas(
+        Modifier
+            .size(32.dp)
+            .graphicsLayer {
+                scaleX = dotScale
+                scaleY = dotScale
+            }
+            .clip(CircleShape)
+            .semantics {
+                contentDescription = "Тема: ${id.title}"
+                selected = isSelected
+            }
+            .clickable(role = Role.RadioButton, onClick = onClick)
+    ) {
+        val c = center
+        val r = minOf(size.width, size.height) / 2f
+        drawCircle(
+            brush = Brush.linearGradient(
+                colors = listOf(sample.startFrom, sample.startTo),
+                start = Offset(0f, 0f),
+                end = Offset(size.width, size.height),
+            ),
+            radius = r - 4.dp.toPx(),
+            center = c,
+        )
+        if (ring > 0.01f) {
+            drawCircle(
+                color = ink.copy(alpha = ring.coerceIn(0f, 1f)),
+                radius = r - 1.dp.toPx(),
+                center = c,
+                style = Stroke(2.dp.toPx()),
+            )
+        }
+    }
+}
+
+/** Компактная кнопка с иконкой палитры: в кружках — цвета стрелок текущей темы. */
+@Composable
+private fun PaletteButton(open: Boolean, onClick: () -> Unit) {
+    val pal = LocalPalette.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) 0.88f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "paletteScale",
+    )
+    val turn by animateFloatAsState(
+        targetValue = if (open) 90f else 0f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessLow),
+        label = "paletteTurn",
+    )
+
+    Box(
+        Modifier
+            .size(40.dp)
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .appCard(pal, 20.dp)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                onClickLabel = "Цветовая тема",
+                role = Role.Button,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(22.dp)) {
+            val c = center
+            val r = minOf(size.width, size.height) / 2f
+            rotate(degrees = turn) {
+                drawCircle(
+                    color = pal.onSurfaceVariant,
+                    radius = r - 1.dp.toPx(),
+                    center = c,
+                    style = Stroke(1.8.dp.toPx()),
+                )
+                val dots = listOf(pal.hour, pal.minute, pal.second)
+                val angles = floatArrayOf(300f, 60f, 180f)
+                for (i in 0..2) {
+                    drawCircle(
+                        color = dots[i],
+                        radius = 2.6.dp.toPx(),
+                        center = polar(c, r * 0.5f, angles[i]),
+                    )
+                }
+            }
+        }
+    }
 }
 
 // =====================================================================================
@@ -427,8 +805,10 @@ private fun MainScreen(
     batteryVisible: Boolean,
     onBattery: () -> Unit,
     onToggle: () -> Unit,
+    themeId: ThemeId,
+    onThemeChange: (ThemeId) -> Unit,
 ) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     val focusManager = LocalFocusManager.current
 
     // Одно состояние запускает каскад: циферблат (0 мс) → цифры (150 мс) → низ (300 мс).
@@ -459,7 +839,7 @@ private fun MainScreen(
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(water.bgTop, water.bgBottom)))
+            .background(Brush.verticalGradient(listOf(pal.bgTop, pal.bgBottom)))
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { focusManager.clearFocus() })
             }
@@ -475,6 +855,16 @@ private fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // 0. Кнопка выбора цветовой темы (появляется вместе с циферблатом)
+            AnimatedVisibility(
+                visibleState = enter,
+                enter = fadeIn(
+                    animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
+                ),
+            ) {
+                ThemePickerBar(current = themeId, onSelect = onThemeChange)
+            }
+
             // 1. Циферблат: опускается сверху
             AnimatedVisibility(
                 visibleState = enter,
@@ -562,9 +952,9 @@ private fun MainScreen(
 //  Аналоговый циферблат: три стрелки (часы 0–24, минуты, секунды)
 // =====================================================================================
 
-private const val HOUR_LEN = 0.42f
-private const val MIN_LEN = 0.66f
-private const val SEC_LEN = 0.84f
+private const val HOUR_LEN = 0.46f
+private const val MIN_LEN = 0.70f
+private const val SEC_LEN = 0.86f
 
 private fun polar(c: Offset, radius: Float, deg: Float): Offset {
     val a = Math.toRadians(deg.toDouble())
@@ -616,7 +1006,7 @@ private fun AnalogDial(
     onSetSeconds: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     val haptic = LocalHapticFeedback.current
 
     val h = totalSec / 3600
@@ -627,11 +1017,12 @@ private fun AnalogDial(
     val minuteAngle = rememberHandAngle(m * 6f, wrap = true)
     val secondAngle = rememberHandAngle(s * 6f, wrap = true)
 
+    // Какая стрелка сейчас перетаскивается (-1 — никакая) и степень её подсветки.
     var active by remember { mutableIntStateOf(-1) }
-    val knobSpec = spring<Float>(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium)
-    val knob0 = animateFloatAsState(if (active == 0) 1f else 0f, knobSpec, label = "knob0")
-    val knob1 = animateFloatAsState(if (active == 1) 1f else 0f, knobSpec, label = "knob1")
-    val knob2 = animateFloatAsState(if (active == 2) 1f else 0f, knobSpec, label = "knob2")
+    val glowSpec = spring<Float>(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium)
+    val glow0 = animateFloatAsState(if (active == 0) 1f else 0f, glowSpec, label = "glow0")
+    val glow1 = animateFloatAsState(if (active == 1) 1f else 0f, glowSpec, label = "glow1")
+    val glow2 = animateFloatAsState(if (active == 2) 1f else 0f, glowSpec, label = "glow2")
     val handsAlpha = animateFloatAsState(
         if (enabled) 1f else 0.55f, tween(300), label = "handsAlpha"
     )
@@ -648,7 +1039,7 @@ private fun AnalogDial(
 
     Canvas(
         modifier
-            .shadow(elevation = if (water.dark) 0.dp else 10.dp, shape = CircleShape)
+            .shadow(elevation = if (pal.dark) 0.dp else 10.dp, shape = CircleShape)
             .semantics { contentDescription = description }
             .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
@@ -701,7 +1092,7 @@ private fun AnalogDial(
         // Лицо циферблата
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(water.faceCenter, water.faceEdge),
+                colors = listOf(pal.faceCenter, pal.faceEdge),
                 center = c,
                 radius = r,
             ),
@@ -709,11 +1100,11 @@ private fun AnalogDial(
             center = c,
         )
 
-        // Кольцо обратного отсчёта (виден только при работающем таймере)
-        val ringStroke = 7.dp.toPx()
-        val ringR = r - ringStroke / 2f - 4.dp.toPx()
+        // Тонкое кольцо обратного отсчёта (виден только при работающем таймере)
+        val ringStroke = 4.dp.toPx()
+        val ringR = r - ringStroke / 2f - 3.dp.toPx()
         drawCircle(
-            color = water.tick.copy(alpha = 0.18f),
+            color = pal.tick.copy(alpha = 0.16f),
             radius = ringR,
             center = c,
             style = Stroke(ringStroke),
@@ -721,7 +1112,7 @@ private fun AnalogDial(
         if (ringAlpha.value > 0.01f && ringFraction.value > 0.002f) {
             drawArc(
                 brush = Brush.linearGradient(
-                    colors = listOf(water.second, water.minute),
+                    colors = listOf(pal.second, pal.minute),
                     start = Offset(0f, 0f),
                     end = Offset(size.width, size.height),
                 ),
@@ -735,72 +1126,57 @@ private fun AnalogDial(
             )
         }
 
-        // Шкала минут/секунд: 60 делений
+        // Шкала: прямые радиальные риски.
+        // Длинные и толстые — на 12, 3, 6 и 9 часах, на остальных делениях короткие.
         val tickOuter = ringR - ringStroke / 2f - 6.dp.toPx()
         for (i in 0 until 60) {
-            val major = i % 5 == 0
-            val len = if (major) 10.dp.toPx() else 5.dp.toPx()
+            val cardinal = i % 15 == 0
+            val len = if (cardinal) 16.dp.toPx() else 6.dp.toPx()
             drawLine(
-                color = water.tick.copy(alpha = if (major) 0.9f else 0.45f),
+                color = if (cardinal) pal.tickStrong
+                else pal.tick.copy(alpha = if (i % 5 == 0) 0.85f else 0.5f),
                 start = polar(c, tickOuter - len, i * 6f),
                 end = polar(c, tickOuter, i * 6f),
-                strokeWidth = if (major) 2.dp.toPx() else 1.dp.toPx(),
-                cap = StrokeCap.Round,
+                strokeWidth = if (cardinal) 3.5.dp.toPx() else 1.5.dp.toPx(),
+                cap = StrokeCap.Butt,
             )
         }
 
-        // Шкала часов: 24 точки (крупные — 0, 6, 12, 18)
-        val dotR = tickOuter - 26.dp.toPx()
-        for (i in 0 until 24) {
-            val major = i % 6 == 0
-            drawCircle(
-                color = water.hour.copy(alpha = if (major) 0.75f else 0.35f),
-                radius = if (major) 3.2.dp.toPx() else 1.8.dp.toPx(),
-                center = polar(c, dotR, i * 15f),
-            )
-        }
-
-        // Стрелки
-        val colors = listOf(water.hour, water.minute, water.second)
+        // Стрелки: прямые линии со скруглёнными краями и небольшим противовесом за осью.
+        val colors = listOf(pal.hour, pal.minute, pal.second)
         val lens = floatArrayOf(r * HOUR_LEN, r * MIN_LEN, r * SEC_LEN)
+        val tails = floatArrayOf(r * 0.10f, r * 0.12f, r * 0.18f)
+        val widths = floatArrayOf(7.dp.toPx(), 5.dp.toPx(), 2.dp.toPx())
         val angles = floatArrayOf(hourAngle.value, minuteAngle.value, secondAngle.value)
-        val widths = floatArrayOf(10.dp.toPx(), 7.dp.toPx(), 3.dp.toPx())
-        val knobs = floatArrayOf(9.dp.toPx(), 8.dp.toPx(), 6.dp.toPx())
-        val press = floatArrayOf(knob0.value, knob1.value, knob2.value)
+        val glow = floatArrayOf(glow0.value, glow1.value, glow2.value)
         val alpha = handsAlpha.value
 
         for (i in 0..2) {
+            val g = glow[i].coerceIn(0f, 1f)
+            val start = polar(c, -tails[i], angles[i])
+            val end = polar(c, lens[i], angles[i])
+            if (g > 0.01f) {
+                // Мягкое свечение вокруг перетаскиваемой стрелки
+                drawLine(
+                    color = colors[i].copy(alpha = 0.25f * g),
+                    start = start,
+                    end = end,
+                    strokeWidth = widths[i] + 12.dp.toPx() * g,
+                    cap = StrokeCap.Round,
+                )
+            }
             drawLine(
                 color = colors[i].copy(alpha = alpha),
-                start = polar(c, -14.dp.toPx(), angles[i]),
-                end = polar(c, lens[i], angles[i]),
-                strokeWidth = widths[i],
+                start = start,
+                end = end,
+                strokeWidth = widths[i] * (1f + 0.35f * g),
                 cap = StrokeCap.Round,
             )
         }
-        for (i in 0..2) {
-            val tip = polar(c, lens[i], angles[i])
-            val t = press[i]
-            if (t > 0.01f) {
-                drawCircle(
-                    color = colors[i].copy(alpha = 0.22f * t),
-                    radius = knobs[i] + 14.dp.toPx() * t,
-                    center = tip,
-                )
-            }
-            val kr = knobs[i] * (1f + 0.3f * t)
-            drawCircle(color = water.faceCenter, radius = kr + 2.dp.toPx(), center = tip)
-            drawCircle(color = colors[i].copy(alpha = alpha), radius = kr, center = tip)
-        }
 
-        // Втулка в центре
-        drawCircle(color = water.faceCenter, radius = 11.dp.toPx(), center = c)
-        drawCircle(
-            color = water.hour,
-            radius = 11.dp.toPx(),
-            center = c,
-            style = Stroke(3.5.dp.toPx()),
-        )
+        // Компактная ось
+        drawCircle(color = pal.hour, radius = 5.dp.toPx(), center = c)
+        drawCircle(color = pal.faceCenter, radius = 1.8.dp.toPx(), center = c)
     }
 }
 
@@ -818,7 +1194,7 @@ private fun DigitalPicker(
     onStep: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     val h = totalSec / 3600
     val m = totalSec % 3600 / 60
     val s = totalSec % 60
@@ -826,19 +1202,19 @@ private fun DigitalPicker(
 
     Row(
         modifier
-            .waterCard(water)
+            .appCard(pal)
             .graphicsLayer { this.alpha = dim }
             .padding(horizontal = 12.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TimeColumn("часы", "часы", h, 24, water.hour, enabled,
+        TimeColumn("часы", "часы", h, 24, pal.hour, enabled,
             onPlus = { onStep(3600) }, onMinus = { onStep(-3600) }, onType = onSetH)
         Colon()
-        TimeColumn("мин", "минуты", m, 59, water.minute, enabled,
+        TimeColumn("мин", "минуты", m, 59, pal.minute, enabled,
             onPlus = { onStep(60) }, onMinus = { onStep(-60) }, onType = onSetM)
         Colon()
-        TimeColumn("сек", "секунды", s, 59, water.second, enabled,
+        TimeColumn("сек", "секунды", s, 59, pal.second, enabled,
             onPlus = { onStep(1) }, onMinus = { onStep(-1) }, onType = onSetS)
     }
 }
@@ -1038,7 +1414,7 @@ private fun StatusTipsCard(
     batteryVisible: Boolean,
     onBattery: () -> Unit,
 ) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     var tipIndex by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(running) {
@@ -1053,7 +1429,7 @@ private fun StatusTipsCard(
     Column(
         Modifier
             .fillMaxWidth()
-            .waterCard(water)
+            .appCard(pal)
             .animateContentSize()
             .padding(16.dp)
     ) {
@@ -1120,7 +1496,7 @@ private fun StatusTipsCard(
 
 @Composable
 private fun StatusDot(running: Boolean) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     val infinite = rememberInfiniteTransition(label = "pulse")
     val pulse = infinite.animateFloat(
         initialValue = 0f,
@@ -1132,7 +1508,7 @@ private fun StatusDot(running: Boolean) {
         label = "pulseValue",
     )
     val dotColor by animateColorAsState(
-        targetValue = if (running) water.minute else MaterialTheme.colorScheme.outline,
+        targetValue = if (running) pal.minute else MaterialTheme.colorScheme.outline,
         animationSpec = tween(400),
         label = "dotColor",
     )
@@ -1156,7 +1532,7 @@ private fun ReminderTextField(
     isError: Boolean,
     enabled: Boolean,
 ) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
@@ -1180,17 +1556,17 @@ private fun ReminderTextField(
         ),
         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = water.card,
-            unfocusedContainerColor = water.card,
-            disabledContainerColor = water.card,
-            errorContainerColor = water.card,
+            focusedContainerColor = pal.card,
+            unfocusedContainerColor = pal.card,
+            disabledContainerColor = pal.card,
+            errorContainerColor = pal.card,
         ),
     )
 }
 
 @Composable
 private fun StartStopButton(running: Boolean, onClick: () -> Unit) {
-    val water = LocalWater.current
+    val pal = LocalPalette.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
@@ -1217,8 +1593,8 @@ private fun StartStopButton(running: Boolean, onClick: () -> Unit) {
                 scaleY = pressScale
             }
             .clip(shape)
-            .background(Brush.horizontalGradient(listOf(water.startFrom, water.startTo)))
-            .drawBehind { drawRect(water.stop.copy(alpha = stopMix)) }
+            .background(Brush.horizontalGradient(listOf(pal.startFrom, pal.startTo)))
+            .drawBehind { drawRect(pal.stop.copy(alpha = stopMix)) }
             .clickable(
                 interactionSource = interaction,
                 indication = LocalIndication.current,
